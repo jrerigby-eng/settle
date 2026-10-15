@@ -8,14 +8,45 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
-// Optional basic-auth gate so a public deploy can't be used by strangers.
+// Optional password gate so a public deploy can't be used by strangers.
+// Browsers get a simple sign-in page (cookie); scripts can still use HTTP basic auth.
+const crypto = require('crypto');
+const authToken = () => crypto.createHash('sha256').update(`settle:${process.env.APP_PASSWORD}`).digest('hex');
+const same = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 function authed(req) {
   const pass = process.env.APP_PASSWORD;
   if (!pass) return true;
-  const h = req.headers.authorization || '';
-  const [, b64] = h.split(' ');
-  const [, p] = Buffer.from(b64 || '', 'base64').toString().split(':');
-  return p === pass;
+  const c = /(?:^|;\s*)settle_auth=([a-f0-9]{64})/.exec(req.headers.cookie || '');
+  if (c && same(c[1], authToken())) return true;
+  const [, b64] = (req.headers.authorization || '').split(' ');
+  const p = Buffer.from(b64 || '', 'base64').toString().split(':').slice(1).join(':');
+  return same(p, pass);
+}
+
+const LOGIN_PAGE = (error) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settle — sign in</title><style>
+:root{--bg:#f5f6f8;--panel:#fff;--ink:#14161a;--muted:#646b78;--line:#e4e7ec;--brand:#0b5cff;--bad:#c0262d}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1014;--panel:#171a20;--ink:#eceef2;--muted:#9aa1ad;--line:#272b33;--bad:#f07178}}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;width:min(360px,calc(100vw - 32px));box-sizing:border-box}
+h1{font-size:20px;margin:0 0 4px}p{color:var(--muted);margin:0 0 18px;font-size:14px}
+input{width:100%;box-sizing:border-box;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin-bottom:12px}
+button{width:100%;font:inherit;font-weight:600;padding:10px;border-radius:10px;border:0;background:var(--brand);color:#fff;cursor:pointer}
+.err{color:var(--bad);font-size:13px;margin:-4px 0 12px}</style></head><body>
+<form method="post" action="/login"><h1>Settle</h1><p>AI accounts-receivable agent on PayPal. Enter the demo password to continue.</p>
+<input type="password" name="password" placeholder="Password" autofocus required>${error ? '<div class="err">Wrong password — try again.</div>' : ''}
+<button>Sign in</button></form></body></html>`;
+
+async function handleLogin(req, res) {
+  let s = ''; for await (const c of req) { s += c; if (s.length > 1e4) break; }
+  const pass = new URLSearchParams(s).get('password') || '';
+  if (process.env.APP_PASSWORD && same(pass, process.env.APP_PASSWORD)) {
+    res.writeHead(303, { Location: '/', 'Set-Cookie': `settle_auth=${authToken()}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000` });
+    return res.end();
+  }
+  await new Promise(r => setTimeout(r, 800)); // slow down guessing
+  res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(LOGIN_PAGE(true));
 }
 
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -43,11 +74,13 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  if (!authed(req)) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Settle"' });
-    return res.end('Password required');
-  }
   const url = new URL(req.url, 'http://x');
+  if (req.method === 'POST' && url.pathname === '/login') return handleLogin(req, res);
+  if (!authed(req)) {
+    if (url.pathname.startsWith('/api/')) return send(res, 401, { error: 'Password required — reload the page to sign in.' });
+    res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(LOGIN_PAGE(false));
+  }
   const handler = routes[`${req.method} ${url.pathname}`];
   if (handler) {
     const sid = sessionOf(req, res);

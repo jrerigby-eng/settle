@@ -59,7 +59,7 @@ npm start                           # http://localhost:3000
 
 Without PayPal keys, the app runs on an in-memory **mock** with sample invoices, so judges can try the UI offline. Optional environment variables:
 
-- `APP_PASSWORD`: password-protects a public deploy (basic auth).
+- `APP_PASSWORD`: password-protects a public deploy with a simple sign-in page (HTTP basic auth also works for scripts).
 - `DEFAULT_CURRENCY`: default `USD`.
 - `ANTHROPIC_MODEL`: the Claude model to use (default `claude-sonnet-5-5`).
 - `PAYPAL_ENV=live`: switches from sandbox to live.

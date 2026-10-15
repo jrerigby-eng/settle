@@ -1,0 +1,9 @@
+{
+  "name": "settle",
+  "version": "1.0.0",
+  "description": "Settle — an AI accounts-receivable agent for freelancers, built on PayPal Invoicing and Claude.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "test": "node test.js" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}

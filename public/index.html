@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settle — get paid without chasing</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b5cff'/><path d='M9 17l5 5 9-12' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --ink:#14161a; --muted:#646b78; --line:#e4e7ec;
+  --brand:#0b5cff; --brand-ink:#fff; --soft:#eef3ff;
+  --ok:#0f8a4b; --ok-bg:#e7f6ee; --warn:#b54708; --warn-bg:#fef3e6; --bad:#c0262d; --bad-bg:#fdecec;
+  --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1014; --panel:#171a20; --ink:#eceef2; --muted:#9aa1ad; --line:#272b33;
+    --soft:#18243f; --ok-bg:#0f2a1c; --warn-bg:#2e2111; --bad-bg:#311617; --ok:#4cc38a; --warn:#f0a35a; --bad:#f07178; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--brand);display:grid;place-items:center}
+header h1{font-size:17px;margin:0;letter-spacing:-.01em}
+header .tag{color:var(--muted);font-size:13px}
+.mode{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:99px;background:var(--soft);color:var(--brand);font-weight:600}
+main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px,1fr);gap:18px;padding:18px;max-width:1280px;margin:0 auto;height:calc(100vh - 59px)}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr);height:auto}}
+@media (max-width:600px){header .tag{display:none} main{padding:12px 16px} .kpis{gap:8px} .kpi{padding:10px} .kpi .v{font-size:15px} .kpi .l{font-size:10px;letter-spacing:.03em} td,th{padding:9px 10px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.left{display:flex;flex-direction:column;gap:14px;min-height:0}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi{padding:14px 16px}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.kpi .v{font-size:24px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi.bad .v{color:var(--bad)}
+.list{flex:1;overflow:auto;min-height:240px}
+.list h2,.chat h2{font-size:14px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+table{width:100%;border-collapse:collapse}
+td,th{padding:11px 16px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.sub{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.03em;white-space:nowrap}
+.s-PAID,.s-MARKED_AS_PAID{background:var(--ok-bg);color:var(--ok)}
+.s-SENT,.s-UNPAID,.s-PARTIALLY_PAID,.s-PAYMENT_PENDING{background:var(--soft);color:var(--brand)}
+.s-DRAFT{background:var(--line);color:var(--muted)}
+.s-OVERDUE{background:var(--bad-bg);color:var(--bad)}
+.s-CANCELLED{background:var(--line);color:var(--muted);text-decoration:line-through}
+.chat{display:flex;flex-direction:column;min-height:0;height:100%}
+@media (max-width:900px){.chat{height:70vh}}
+.msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:88%;padding:10px 13px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word}
+.m.u{align-self:flex-end;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
+.m.a{align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m.err{border-color:var(--bad);color:var(--bad)}
+.trace{align-self:flex-start;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px}
+.trace span{border:1px dashed var(--line);border-radius:6px;padding:2px 7px;font-family:ui-monospace,Menlo,monospace}
+.approve{align-self:stretch;border:1px solid var(--warn);background:var(--warn-bg);border-radius:12px;padding:12px}
+.approve .t{font-weight:700;font-size:13px;color:var(--warn);text-transform:uppercase;letter-spacing:.05em}
+.approve .s{margin:4px 0 8px}
+.approve .note{font-size:13px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap}
+.approve.done{border-color:var(--ok);background:var(--ok-bg)}
+.approve.done .t{color:var(--ok)}
+.btns{display:flex;gap:8px}
+button{font:inherit;font-size:14px;font-weight:600;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+button:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
+.chip{font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:99px;background:var(--soft);border:0;color:var(--brand)}
+form{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);height:46px;max-height:160px}
+textarea:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.dots::after{content:'…';animation:d 1s steps(3) infinite}
+@keyframes d{0%{content:'.'}50%{content:'..'}100%{content:'...'}}
+.empty{padding:30px 16px;color:var(--muted);text-align:center}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><svg width="18" height="18" viewBox="0 0 32 32"><path d="M7 17l6 6 12-14" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <h1>Settle</h1><span class="tag">AI accounts-receivable agent on PayPal</span>
+  <span class="mode" id="mode">…</span>
+</header>
+<main>
+  <section class="left">
+    <div class="kpis">
+      <div class="card kpi"><div class="l">Outstanding</div><div class="v" id="k-out">—</div></div>
+      <div class="card kpi bad"><div class="l">Overdue</div><div class="v" id="k-over">—</div></div>
+      <div class="card kpi"><div class="l">Collected</div><div class="v" id="k-paid">—</div></div>
+    </div>
+    <div class="card list">
+      <h2>Invoices <button id="refresh" title="Refresh">↻</button></h2>
+      <table><thead><tr><th>Client</th><th>Status</th><th>Due</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table>
+    </div>
+  </section>
+  <section class="card chat">
+    <h2>Assistant <button id="reset" title="New conversation">New chat</button></h2>
+    <div class="msgs" id="msgs">
+      <div class="m a">Hi! Paste a client email, job notes or timesheet and I'll turn it into a PayPal invoice. I can also chase late payers and tell you who owes what. Nothing is sent without your approval.</div>
+    </div>
+    <div class="chips">
+      <button class="chip" data-q="Who owes me money right now, and what's overdue?">Who owes me?</button>
+      <button class="chip" data-q="Chase every overdue invoice with a reminder that fits how late it is.">Chase overdue</button>
+      <button class="chip" data-q="Hey! Thanks again for the work on our Shopify store this month. Can you bill us for the 14 hours of theme fixes at your usual €55/h plus the €200 app setup fee? Send it to accounts@nordicknits.example — we pay within 2 weeks. Cheers, Freja (Nordic Knits)">Paste a client email</button>
+    </div>
+    <form id="f"><textarea id="q" placeholder="Paste a message or ask anything…"></textarea><button class="primary" id="go">Send</button></form>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (v, c) => { try { return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'USD'}).format(v); } catch { return `${c} ${v}`; } };
+const api = async (p, b) => { const r = await fetch(p, b ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)} : {}); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
+
+async function load() {
+  const { invoices } = await api('/api/invoices');
+  const by = (f) => { const t = {}; invoices.filter(f).forEach(i => t[i.currency] = (t[i.currency]||0) + Number(i.total)); return Object.entries(t).map(([c,v]) => fmt(v,c)).join(' + ') || fmt(0); };
+  const open = i => ['SENT','UNPAID','PARTIALLY_PAID','PAYMENT_PENDING'].includes(i.status);
+  $('#k-out').textContent = by(open);
+  $('#k-over').textContent = by(i => i.overdue);
+  $('#k-paid').textContent = by(i => ['PAID','MARKED_AS_PAID'].includes(i.status));
+  $('#rows').innerHTML = invoices.length ? invoices.map(i => {
+    const st = i.overdue ? 'OVERDUE' : i.status;
+    return `<tr><td><b>${esc(i.client)}</b><div class="sub">#${esc(i.number)} · ${esc(i.email)}</div></td>
+      <td><span class="pill s-${st}">${esc(st.replace(/_/g,' '))}</span></td>
+      <td>${esc(i.due || 'Net 30')}</td><td class="num">${fmt(i.total, i.currency)}</td></tr>`;
+  }).join('') : `<tr><td colspan="4" class="empty">No invoices yet — paste a client message to create one.</td></tr>`;
+}
+
+function add(html, cls) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; $('#msgs').appendChild(d); $('#msgs').scrollTop = 1e9; return d; }
+
+const LABEL = { send:'Send invoice', remind:'Send reminder', record_payment:'Record payment', cancel:'Cancel invoice' };
+function approval(p) {
+  const d = add(`<div class="t">Needs your OK · ${LABEL[p.action]}</div><div class="s">${esc(p.summary)}</div>
+    ${p.note ? `<div class="note"><b>${esc(p.subject||'')}</b>\n${esc(p.note)}</div>` : ''}
+    <div class="btns"><button class="primary">Approve</button><button>Skip</button></div>`, 'approve');
+  const [ok, no] = d.querySelectorAll('button');
+  ok.onclick = async () => { ok.disabled = no.disabled = true; ok.textContent = 'Working…';
+    try { const { result } = await api('/api/approve', { actionId: p.actionId });
+      d.classList.add('done'); d.querySelector('.t').textContent = `Done · ${LABEL[p.action]}`;
+      d.querySelector('.btns').innerHTML = result?.pay_link ? `<a href="${esc(result.pay_link)}" target="_blank" rel="noopener">Open PayPal invoice ↗</a>` : '';
+      load();
+    } catch (e) { ok.textContent = 'Failed'; add(esc(e.message), 'm a err'); } };
+  no.onclick = async () => { await api('/api/reject', { actionId: p.actionId }); d.remove(); };
+}
+
+async function ask(text) {
+  if (!text.trim()) return;
+  add(esc(text), 'm u'); $('#q').value = ''; $('#go').disabled = true;
+  const wait = add('<span class="dots">Thinking</span>', 'm a');
+  try {
+    const r = await api('/api/chat', { message: text });
+    wait.remove();
+    if (r.trace.length) add(r.trace.map(t => `<span>${esc(t.tool)}${t.ok ? '' : ' ✗'}</span>`).join(''), 'trace');
+    if (r.reply) add(esc(r.reply), 'm a');
+    r.proposals.forEach(approval);
+    load();
+  } catch (e) { wait.remove(); add(esc(e.message), 'm a err'); }
+  $('#go').disabled = false; $('#q').focus();
+}
+
+$('#f').onsubmit = e => { e.preventDefault(); ask($('#q').value); };
+$('#q').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask($('#q').value); } };
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => ask(c.dataset.q));
+$('#refresh').onclick = load;
+$('#reset').onclick = async () => { await api('/api/reset', {}); $('#msgs').innerHTML = ''; add('New conversation started.', 'm a'); };
+api('/api/status').then(s => $('#mode').textContent = `PayPal ${s.paypal}${s.ai ? '' : ' · AI key missing'}`);
+load().catch(e => $('#rows').innerHTML = `<tr><td colspan="4" class="empty">${esc(e.message)}</td></tr>`);
+</script>
+</body>
+</html>

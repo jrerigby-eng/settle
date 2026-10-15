@@ -112,12 +112,14 @@ a{color:var(--brand)}
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Light formatting for assistant replies: escape first, then turn **bold** into <b>.
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^#+\s*/gm, '');
 const fmt = (v, c) => { try { return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'USD'}).format(v); } catch { return `${c} ${v}`; } };
 const api = async (p, b) => { const r = await fetch(p, b ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)} : {}); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
 
 async function load() {
   const { invoices } = await api('/api/invoices');
-  const by = (f) => { const t = {}; invoices.filter(f).forEach(i => t[i.currency] = (t[i.currency]||0) + Number(i.total)); return Object.entries(t).map(([c,v]) => fmt(v,c)).join(' + ') || fmt(0); };
+  const by = (f) => { const t = {}; invoices.filter(f).forEach(i => t[i.currency] = (t[i.currency]||0) + Number(i.total)); return Object.entries(t).map(([c,v]) => fmt(v,c)).join(' + ') || fmt(0, invoices[0]?.currency); };
   const open = i => ['SENT','UNPAID','PARTIALLY_PAID','PAYMENT_PENDING'].includes(i.status);
   $('#k-out').textContent = by(open);
   $('#k-over').textContent = by(i => i.overdue);
@@ -155,7 +157,7 @@ async function ask(text) {
     const r = await api('/api/chat', { message: text });
     wait.remove();
     if (r.trace.length) add(r.trace.map(t => `<span>${esc(t.tool)}${t.ok ? '' : ' ✗'}</span>`).join(''), 'trace');
-    if (r.reply) add(esc(r.reply), 'm a');
+    if (r.reply) add(md(r.reply), 'm a');
     r.proposals.forEach(approval);
     load();
   } catch (e) { wait.remove(); add(esc(e.message), 'm a err'); }
